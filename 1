@@ -1,0 +1,66 @@
+def test_string_uuid_md5():
+    first_string = "random"
+
+    auth = requests.get(
+        url=f"{URL}{STRING}",
+        auth=HTTPBasicAuth(username=USERNAME, password=PASS),
+        params={
+            "string": first_string
+        },
+    )
+
+    uuid_code = auth.json().get('uuid')
+
+    uuid = requests.post(
+        url=f"{URL}{UUID}",
+        json={
+            "uuid": uuid_code,
+        },
+    )
+
+    md5_code = uuid.json().get('md5')
+
+    md5 = requests.put(
+        url=f"{URL}{MD5}",
+        params={
+            "md5": md5_code
+        },
+        headers={
+            "uuid": uuid
+        }
+    )
+
+    second_string = md5.json().get('message')
+
+    assert (second_string, first_string), f"{second_string} should be equal {first_string}"
+
+
+def test_jwt_validation():
+    with open(PATH, 'rb') as f:
+        private_key = pem.parse(f.read())
+    assert (len(private_key) == 1), "There should be exactly one key in the file"
+
+    key = private_key[0].as_text()
+    iaf = round(time.time())
+    payload_data = {
+        "iss": "Authlib",
+        "sub": "123",
+        "autotest": True,
+        "iat": iaf,
+    }
+
+    token = jwt.encode(
+        payload=payload_data,
+        key=key,
+        algorithm='RS256',
+    )
+
+    validate = requests.post(
+        url=f"{URL}{VAL}",
+        json={
+            "jwt": token
+        }
+    )
+
+    status = validate.json().get('status')
+    assert (status, "valid"), "Status should be valid"
